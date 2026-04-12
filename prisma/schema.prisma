@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  AGENCY
+  ENTERPRISE
+}
+
+enum ScanStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum ScanFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum AlertChannel {
+  EMAIL
+  SLACK
+  WEBHOOK
+  PAGERDUTY
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  emailVerified        DateTime?
+  name                 String?
+  avatar               String?
+  password             String?
+  plan                 Plan      @default(FREE)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  subscriptionStatus   String?
+  currentPeriodEnd     DateTime?
+  apiKey               String    @unique @default(cuid())
+  apiCallsThisMonth    Int       @default(0)
+  scanCountThisMonth   Int       @default(0)
+  totalScans           Int       @default(0)
+  twoFactorEnabled     Boolean   @default(false)
+  twoFactorSecret      String?
+  onboardingCompleted  Boolean   @default(false)
+  isAdmin              Boolean   @default(false)
+  isSuspended          Boolean   @default(false)
+  resetToken           String?   @unique
+  resetTokenExpiry     DateTime?
+  emailVerifyToken     String?   @unique
+  emailVerifyExpiry    DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  scans          Scan[]
+  scheduledScans ScheduledScan[]
+  alertRules     AlertRule[]
+  orgMemberships OrgMember[]
+  apiUsage       ApiUsage[]
+  sessions       UserSession[]
+  notifications  Notification[]
+  accounts       Account[]
+  webhooks       Webhook[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  userAgent String?
+  ipAddress String?
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logo        String?
+  ownerId     String
+  plan        Plan     @default(PRO)
+  scanLimit   Int      @default(500)
+  memberLimit Int      @default(15)
+  createdAt   DateTime @default(now())
+
+  members OrgMember[]
+  scans   Scan[]
+  clients Client[]
+}
+
+model OrgMember {
+  id     String  @id @default(cuid())
+  orgId  String
+  userId String
+  role   OrgRole @default(VIEWER)
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  orgId        String
+  name         String
+  logo         String?
+  website      String?
+  contactEmail String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  org   Organization @relation(fields: [orgId], references: [id])
+  scans Scan[]
+}
+
+model Scan {
+  id              String     @id @default(cuid())
+  userId          String
+  orgId           String?
+  clientId        String?
+  url             String
+  domain          String
+  status          ScanStatus @default(QUEUED)
+  score           Int?
+  grade           String?
+  findings        Json       @default("[]")
+  techStack       Json       @default("{}")
+  ipAddress       String?
+  serverLocation  String?
+  serverSoftware  String?
+  scanDuration    Int?
+  modulesRun      String[]
+  pdfUrl          String?
+  htmlReportUrl   String?
+  isPublic        Boolean    @default(false)
+  shareToken      String?    @unique
+  shareExpiresAt  DateTime?
+  errorMessage    String?
+  scheduledScanId String?
+  createdAt       DateTime   @default(now())
+  completedAt     DateTime?
+
+  user             User              @relation(fields: [userId], references: [id])
+  org              Organization?     @relation(fields: [orgId], references: [id])
+  client           Client?           @relation(fields: [clientId], references: [id])
+  categoryScores   ScanCategoryScore[]
+  complianceResults ComplianceResult[]
+  alerts           ScanAlert[]
+}
+
+model ScanCategoryScore {
+  id       String @id @default(cuid())
+  scanId   String
+  category String
+  score    Int
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model ComplianceResult {
+  id        String @id @default(cuid())
+  scanId    String
+  framework String
+  score     Int
+  passed    Int
+  failed    Int
+  details   Json   @default("[]")
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model ScheduledScan {
+  id             String        @id @default(cuid())
+  userId         String
+  url            String
+  domain         String
+  frequency      ScanFrequency @default(WEEKLY)
+  isActive       Boolean       @default(true)
+  lastScore      Int?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  notifyEmail    String?
+  alertThreshold Int           @default(70)
+  createdAt      DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AlertRule {
+  id          String       @id @default(cuid())
+  userId      String
+  name        String
+  url         String?
+  minSeverity Severity     @default(HIGH)
+  channel     AlertChannel @default(EMAIL)
+  emailTo     String?
+  slackUrl    String?
+  webhookUrl  String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ScanAlert {
+  id      String   @id @default(cuid())
+  scanId  String
+  channel String
+  sentTo  String?
+  status  String
+  payload Json?
+  sentAt  DateTime @default(now())
+
+  scan Scan @relation(fields: [scanId], references: [id])
+}
+
+model ApiUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  endpoint     String
+  method       String
+  statusCode   Int
+  responseTime Int
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  userId    String
+  url       String
+  secret    String
+  events    String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveryLogs WebhookLog[]
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  webhookId  String
+  event      String
+  statusCode Int?
+  response   String?
+  error      String?
+  sentAt     DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String
+  role      OrgRole  @default(VIEWER)
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

@@ -11,84 +11,224 @@
 }
 
 @layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-  }
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    /* VAULTRIX Design Tokens */
+    --background: #050508;
+    --surface: #0d0d14;
+    --card: #111120;
+    --border-default: #1e1e35;
+    --border-hover: #2a2a4a;
+    --text-primary: #f0f0ff;
+    --text-muted: #8888aa;
+    --text-disabled: #3a3a5c;
+
+    /* Severity colors */
+    --accent-green: #4ade80;
+    --danger-red: #ef4444;
+    --warning-orange: #f59e0b;
+    --info-blue: #60a5fa;
+    --muted-color: #8888aa;
+
+    /* shadcn/ui CSS vars (dark-only) */
+    --background: oklch(0.08 0.02 270);
+    --foreground: oklch(0.96 0.01 270);
+    --card: oklch(0.1 0.02 270);
+    --card-foreground: oklch(0.96 0.01 270);
+    --popover: oklch(0.1 0.02 270);
+    --popover-foreground: oklch(0.96 0.01 270);
+    --primary: oklch(0.75 0.18 145);
+    --primary-foreground: oklch(0.1 0.02 270);
+    --secondary: oklch(0.15 0.03 270);
+    --secondary-foreground: oklch(0.96 0.01 270);
+    --muted: oklch(0.15 0.03 270);
+    --muted-foreground: oklch(0.6 0.02 270);
+    --accent: oklch(0.15 0.03 270);
+    --accent-foreground: oklch(0.96 0.01 270);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --border: oklch(0.2 0.03 270);
+    --input: oklch(0.18 0.03 270);
+    --ring: oklch(0.75 0.18 145);
+    --radius: 0.5rem;
+    --chart-1: oklch(0.75 0.18 145);
+    --chart-2: oklch(0.65 0.18 250);
+    --chart-3: oklch(0.72 0.17 50);
+    --chart-4: oklch(0.68 0.22 27);
+    --chart-5: oklch(0.6 0.02 270);
+    --sidebar: oklch(0.1 0.02 270);
+    --sidebar-foreground: oklch(0.96 0.01 270);
+    --sidebar-primary: oklch(0.75 0.18 145);
+    --sidebar-primary-foreground: oklch(0.1 0.02 270);
+    --sidebar-accent: oklch(0.15 0.03 270);
+    --sidebar-accent-foreground: oklch(0.96 0.01 270);
+    --sidebar-border: oklch(0.2 0.03 270);
+    --sidebar-ring: oklch(0.75 0.18 145);
   }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
-    @apply font-sans;
+    color-scheme: dark;
   }
+
+  body {
+    background-color: #050508;
+    color: #f0f0ff;
+    font-family: var(--font-dm-mono), 'DM Mono', monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-chakra), 'Chakra Petch', sans-serif;
+    color: #f0f0ff;
+  }
+}
+
+/* Vaultrix Brand Classes */
+.font-heading {
+  font-family: var(--font-chakra), 'Chakra Petch', sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-dm-mono), 'DM Mono', monospace;
+}
+
+/* Severity badge colors */
+.severity-critical { color: #ef4444; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+.severity-high     { color: #f59e0b; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); }
+.severity-medium   { color: #60a5fa; background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); }
+.severity-low      { color: #8888aa; background: rgba(136, 136, 170, 0.1); border-color: rgba(136, 136, 170, 0.3); }
+.severity-info     { color: #8888aa; background: rgba(136, 136, 170, 0.08); border-color: rgba(136, 136, 170, 0.2); }
+
+/* Score colors */
+.score-a { color: #4ade80; }
+.score-b { color: #86efac; }
+.score-c { color: #f59e0b; }
+.score-d { color: #f97316; }
+.score-f { color: #ef4444; }
+
+/* Terminal / code block */
+.terminal {
+  background: #0a0a12;
+  border: 1px solid #1e1e35;
+  border-radius: 8px;
+  font-family: var(--font-dm-mono), 'DM Mono', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+/* Floating particle background */
+.particles-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, 0.12);
+  animation: float-particle linear infinite;
+}
+
+@keyframes float-particle {
+  0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+/* Scanning radar */
+@keyframes radar-scan {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: radar-scan 2s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes radar-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50%       { transform: scale(1.05); opacity: 0.8; }
+}
+
+.radar-ring {
+  animation: radar-pulse 2s ease-in-out infinite;
+}
+
+/* Animated counter */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d0d14; }
+::-webkit-scrollbar-thumb { background: #1e1e35; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2a2a4a; }
+
+/* Vaultrix card hover */
+.vx-card {
+  background: #111120;
+  border: 1px solid #1e1e35;
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.vx-card:hover {
+  border-color: #2a2a4a;
+  box-shadow: 0 4px 24px rgba(74, 222, 128, 0.05);
+}
+
+/* Green glow button */
+.btn-primary {
+  background: #4ade80;
+  color: #050508;
+  font-family: var(--font-chakra), 'Chakra Petch', sans-serif;
+  font-weight: 600;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #22c55e;
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+}
+
+/* Status indicators */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-operational { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.status-degraded    { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+.status-down        { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+/* Typewriter cursor */
+.cursor-blink::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: #4ade80;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Grade badge */
+.grade-badge {
+  font-family: var(--font-chakra), 'Chakra Petch', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
