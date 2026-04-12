@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 
 const schema = z.object({
   email: z.string().email(),
-  role: z.enum(['MEMBER', 'ADMIN', 'VIEWER']).default('MEMBER'),
+  role: z.enum(['ADMIN', 'ANALYST', 'VIEWER']).default('ANALYST'),
 })
 
 export async function POST(req: NextRequest) {
@@ -24,16 +24,21 @@ export async function POST(req: NextRequest) {
 
   const { email, role } = parsed.data
 
+  // Need an org to attach invitation to
+  const membership = await db.orgMember.findFirst({
+    where: { userId: session.userId },
+    select: { orgId: true },
+  })
+  if (!membership) return err('No organization found', 400)
+
   // Check if user exists
   const invitee = await db.user.findUnique({ where: { email } })
 
-  // Create invitation record
   await db.invitation.create({
     data: {
       email,
-      role: role as 'MEMBER',
-      inviterId: session.userId,
-      token: Math.random().toString(36).slice(2) + Date.now().toString(36),
+      role: role as 'ADMIN' | 'ANALYST' | 'VIEWER',
+      orgId: membership.orgId,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   })

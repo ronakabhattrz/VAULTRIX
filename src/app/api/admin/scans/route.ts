@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         status: true,
         score: true,
         grade: true,
+        scanDuration: true,
         createdAt: true,
         completedAt: true,
         user: { select: { id: true, name: true, email: true } },

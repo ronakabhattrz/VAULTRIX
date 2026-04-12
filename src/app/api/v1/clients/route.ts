@@ -10,21 +10,35 @@ const createSchema = z.object({
   notes: z.string().max(500).optional(),
 })
 
+async function getUserOrg(userId: string) {
+  const membership = await db.orgMember.findFirst({
+    where: { userId },
+    select: { orgId: true },
+  })
+  return membership?.orgId ?? null
+}
+
 export async function GET(req: NextRequest) {
   const session = await requireAuth(req)
   if (!session) return err('Unauthorized', 401)
 
+  const orgId = await getUserOrg(session.userId)
+  if (!orgId) return ok({ clients: [] })
+
   const clients = await db.client.findMany({
-    where: { userId: session.userId },
+    where: { orgId },
     orderBy: { name: 'asc' },
     include: { _count: { select: { scans: true } } },
   })
 
   return ok({
-    clients: clients.map((c: { id: string; name: string; domain?: string; contactEmail?: string; notes?: string; _count: { scans: number } }) => ({
-      ...c,
+    clients: clients.map(c => ({
+      id: c.id,
+      name: c.name,
+      website: c.website,
+      contactEmail: c.contactEmail,
+      notes: c.notes,
       scanCount: c._count.scans,
-      _count: undefined,
     })),
   })
 }
@@ -37,6 +51,9 @@ export async function POST(req: NextRequest) {
     return err('Agency plan required', 403)
   }
 
+  const orgId = await getUserOrg(session.userId)
+  if (!orgId) return err('No organization found — create one first', 400)
+
   const body = await req.json().catch(() => null)
   if (!body) return err('Invalid JSON')
 
@@ -45,9 +62,9 @@ export async function POST(req: NextRequest) {
 
   const client = await db.client.create({
     data: {
-      userId: session.userId,
+      orgId,
       name: parsed.data.name,
-      domain: parsed.data.domain || null,
+      website: parsed.data.domain || null,
       contactEmail: parsed.data.contactEmail || null,
       notes: parsed.data.notes || null,
     },

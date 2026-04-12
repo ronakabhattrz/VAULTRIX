@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Search, Loader2, ChevronLeft, ChevronRight, Trash2, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
+import Link from 'next/link'
 
 const STATUS_STYLES: Record<string, string> = {
   COMPLETED: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
@@ -15,10 +17,17 @@ const GRADE_COLORS: Record<string, string> = {
   'A+': '#4ade80', A: '#4ade80', B: '#86efac', C: '#f59e0b', D: '#f97316', F: '#ef4444'
 }
 
+type Scan = {
+  id: string; url: string; status: string; score?: number; grade?: string;
+  scanDuration?: number; createdAt: string;
+  user?: { name?: string; email: string }
+}
+
 export default function AdminScansPage() {
   const [page, setPage]     = useState(1)
   const [search, setSearch] = useState('')
   const [q, setQ]           = useState('')
+  const qc = useQueryClient()
 
   const { data: res, isLoading } = useQuery({
     queryKey: ['admin-scans', page, q],
@@ -30,6 +39,20 @@ export default function AdminScansPage() {
       const json = await r.json()
       return json.data ?? json
     },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!confirm('Delete this scan? This cannot be undone.')) throw new Error('Cancelled')
+      const r = await fetch(`/api/admin/scans/${id}`, { method: 'DELETE' })
+      if (!r.ok) throw new Error('Delete failed')
+      return r.json()
+    },
+    onSuccess: () => {
+      toast.success('Scan deleted')
+      qc.invalidateQueries({ queryKey: ['admin-scans'] })
+    },
+    onError: (e: Error) => { if (e.message !== 'Cancelled') toast.error('Delete failed') },
   })
 
   const scans = res?.scans ?? []
@@ -60,23 +83,21 @@ export default function AdminScansPage() {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: '#0d0d18', borderBottom: '1px solid #2a2a3a' }}>
-              {['URL', 'User', 'Status', 'Score', 'Duration', 'Date'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-widest">{h}</th>
+              {['URL', 'User', 'Status', 'Score', 'Duration', 'Date', ''].map((h, i) => (
+                <th key={i} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-widest">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody style={{ background: '#080810' }}>
             {isLoading ? (
-              <tr><td colSpan={6} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin text-red-400 mx-auto" /></td></tr>
+              <tr><td colSpan={7} className="text-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-red-400 mx-auto" />
+              </td></tr>
             ) : scans.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-12 text-slate-500">No scans found</td></tr>
-            ) : scans.map((s: {
-              id: string; url: string; status: string; score?: number; grade?: string;
-              scanDuration?: number; createdAt: string;
-              user?: { name?: string; email: string }
-            }) => (
+              <tr><td colSpan={7} className="text-center py-12 text-slate-500">No scans found</td></tr>
+            ) : scans.map((s: Scan) => (
               <tr key={s.id} className="border-t hover:bg-white/[0.02] transition-colors" style={{ borderColor: '#1e1e2e' }}>
-                <td className="px-4 py-3 max-w-[240px]">
+                <td className="px-4 py-3 max-w-[200px]">
                   <p className="text-xs text-white font-mono truncate">{s.url}</p>
                   <p className="text-xs text-slate-600 font-mono mt-0.5">{s.id.slice(0, 8)}…</p>
                 </td>
@@ -104,6 +125,24 @@ export default function AdminScansPage() {
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs font-mono">
                   {new Date(s.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    {s.status === 'COMPLETED' && (
+                      <Link href={`/scan/${s.id}`}
+                        className="p-1.5 rounded hover:bg-white/10 text-slate-500 hover:text-blue-400 transition-colors"
+                        title="View report">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => deleteMutation.mutate(s.id)}
+                      className="p-1.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                      title="Delete scan"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

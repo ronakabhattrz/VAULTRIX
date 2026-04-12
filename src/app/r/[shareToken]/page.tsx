@@ -47,7 +47,7 @@ export default async function PublicReportPage({ params }: Props) {
         {/* Title */}
         <div className="mb-8">
           <h1 className="text-2xl font-heading font-bold text-[#f0f0ff]">Security Report</h1>
-          <p className="text-[#8888aa] font-mono mt-1">{scan.target}</p>
+          <p className="text-[#8888aa] font-mono mt-1">{scan.url}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className="inline-flex px-2 py-0.5 rounded border text-[10px] font-heading font-semibold uppercase text-[#4ade80] bg-[#4ade80]/10 border-[#4ade80]/20">
               {scan.status}
