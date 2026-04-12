@@ -76,8 +76,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (trigger === 'update' && session?.plan) {
         token.plan = session.plan
       }
-      // Always refresh from DB on every JWT call to pick up plan/isAdmin changes
-      if (token.id) {
+      // Refresh from DB only on signIn (not every request — Prisma breaks in Edge Runtime)
+      if (trigger === 'signIn' && token.id) {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
           select: { plan: true, isAdmin: true, isSuspended: true },
@@ -85,7 +85,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (dbUser) {
           token.plan = dbUser.plan
           token.isAdmin = dbUser.isAdmin
-          if (dbUser.isSuspended) token.isSuspended = true
         }
       }
       return token

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Shield, FileText, Calendar, Code2, Users, Briefcase,
   CreditCard, Settings, LogOut, Menu, X, Bell, ChevronDown, Zap,
-  AlertTriangle, Crown
+  AlertTriangle, Crown, ShieldAlert
 } from 'lucide-react'
 import { Logo } from '@/components/layout/Logo'
 import { PlanBadge } from '@/components/security/PlanBadge'
@@ -97,6 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const plan = (session?.user as { plan?: string })?.plan ?? 'FREE'
   const isAgencyPlus = ['AGENCY', 'ENTERPRISE'].includes(plan)
+  const isAdmin = (session?.user as { isAdmin?: boolean })?.isAdmin ?? false
 
   const scansUsed = (session?.user as { scansThisMonth?: number })?.scansThisMonth ?? 0
   const scanLimit = plan === 'FREE' ? 5 : plan === 'STARTER' ? 50 : plan === 'PRO' ? 200 : -1
@@ -142,6 +143,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             active={pathname.startsWith(item.href)}
           />
         ))}
+
+        {isAdmin && (
+          <>
+            <div className="pt-4 pb-1">
+              <p className="px-3 text-[10px] font-heading font-semibold text-[#3a3a5c] uppercase tracking-wider">Admin</p>
+            </div>
+            <Link
+              href="/admin"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all border border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10"
+            >
+              <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1">Admin Panel</span>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Scan credits */}

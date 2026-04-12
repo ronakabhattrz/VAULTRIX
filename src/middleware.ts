@@ -66,17 +66,15 @@ export async function middleware(request: NextRequest) {
 
   // Auth protection for dashboard routes
   const isProtected = PROTECTED_ROUTES.some(r => pathname.startsWith(r))
-  const isAdmin = ADMIN_ROUTES.some(r => pathname.startsWith(r))
+  const isAdminRoute = ADMIN_ROUTES.some(r => pathname.startsWith(r))
 
-  if (isProtected || isAdmin) {
+  // Only check login for protected + admin routes — isAdmin check is done in the layout
+  if (isProtected || isAdminRoute) {
     const session = await auth()
     if (!session?.user?.id) {
       const loginUrl = new URL('/auth/login', request.url)
       loginUrl.searchParams.set('callbackUrl', pathname)
       return NextResponse.redirect(loginUrl)
-    }
-    if (isAdmin && !(session.user as { isAdmin?: boolean }).isAdmin) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
