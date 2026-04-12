@@ -19,11 +19,12 @@ export default function ScanRunningPage() {
       try {
         const res = await fetch(`/api/v1/scan/${scanId}`)
         if (!res.ok) return
-        const data = await res.json()
-        if (data.status === 'COMPLETED') {
+        const json = await res.json()
+        const status = json.data?.status ?? json.status
+        if (status === 'COMPLETED') {
           clearInterval(interval)
           router.push(`/scan/${scanId}`)
-        } else if (data.status === 'FAILED') {
+        } else if (status === 'FAILED') {
           clearInterval(interval)
           toast.error('Scan failed')
           router.push('/dashboard')

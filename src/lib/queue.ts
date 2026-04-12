@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { getIORedis } from './redis'
+import { getIORedis } from './ioredis'
 
 export interface ScanJobData {
   scanId: string

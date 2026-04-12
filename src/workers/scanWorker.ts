@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq'
 import { db } from '../lib/db'
 import { runScanner } from '../lib/scanner'
 import { publishScanEvent } from '../lib/scanEmitter'
-import { getIORedis } from '../lib/redis'
+import { getIORedis } from '../lib/ioredis'
 import type { ScanJobData } from '../lib/queue'
 import type { ScanEmitEvent, ScanPlan } from '../lib/scanner/types'
 

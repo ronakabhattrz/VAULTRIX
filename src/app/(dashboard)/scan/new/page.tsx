@@ -77,7 +77,8 @@ export default function NewScanPage() {
         toast.error(json.error ?? 'Failed to start scan')
         return
       }
-      const { scanId } = await res.json()
+      const json = await res.json()
+      const scanId = json.data?.scanId ?? json.scanId
       router.push(`/scan/${scanId}/running`)
     } catch {
       toast.error('Network error')

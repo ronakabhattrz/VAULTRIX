@@ -63,7 +63,8 @@ export default function ScanResultPage() {
     queryFn: async () => {
       const res = await fetch(`/api/v1/scan/${scanId}`)
       if (!res.ok) throw new Error('Not found')
-      return res.json()
+      const json = await res.json()
+      return json.data ?? json
     },
   })
 
@@ -72,7 +73,8 @@ export default function ScanResultPage() {
     try {
       const res = await fetch(`/api/v1/scan/${scanId}/share`, { method: 'POST' })
       if (!res.ok) throw new Error()
-      const { shareUrl } = await res.json()
+      const json = await res.json()
+      const shareUrl = json.data?.shareUrl ?? json.shareUrl
       await navigator.clipboard.writeText(shareUrl)
       toast.success('Share link copied to clipboard!')
     } catch {

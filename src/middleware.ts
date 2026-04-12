@@ -1,30 +1,30 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { Ratelimit } from '@upstash/ratelimit'
-import { redis } from '@/lib/redis'
 import { auth } from '@/lib/auth'
-
-const demoRatelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(3, '1 d'),
-  prefix: 'rl:demo',
-})
-
-const authRatelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, '15 m'),
-  prefix: 'rl:auth',
-})
-
-const apiRatelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, '1 m'),
-  prefix: 'rl:api',
-})
 
 const PROTECTED_ROUTES = ['/dashboard', '/scan', '/reports', '/scheduled', '/api-access', '/team', '/clients', '/billing', '/settings']
 const ADMIN_ROUTES = ['/admin']
 const AUTH_ROUTES = ['/auth/login', '/auth/register']
+
+const hasUpstash = !!(
+  process.env.UPSTASH_REDIS_REST_URL &&
+  process.env.UPSTASH_REDIS_REST_URL !== 'http://localhost:6379' &&
+  process.env.UPSTASH_REDIS_REST_TOKEN &&
+  process.env.UPSTASH_REDIS_REST_TOKEN !== 'placeholder'
+)
+
+async function checkRateLimit(prefix: string, ip: string, limit: number, window: string): Promise<boolean> {
+  if (!hasUpstash) return true
+  try {
+    const { Ratelimit } = await import('@upstash/ratelimit')
+    const { redis } = await import('@/lib/redis')
+    const rl = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(limit, window as `${number} ${'ms'|'s'|'m'|'h'|'d'}`), prefix })
+    const { success } = await rl.limit(ip)
+    return success
+  } catch {
+    return true
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -48,26 +48,20 @@ export async function middleware(request: NextRequest) {
 
   // Rate limiting for demo scan
   if (pathname === '/api/demo/scan' && request.method === 'POST') {
-    const { success } = await demoRatelimit.limit(ip)
-    if (!success) {
-      return NextResponse.json({ success: false, error: 'Rate limit exceeded' }, { status: 429 })
-    }
+    const ok = await checkRateLimit('rl:demo', ip, 3, '1 d')
+    if (!ok) return NextResponse.json({ success: false, error: 'Rate limit exceeded' }, { status: 429 })
   }
 
   // Rate limiting for auth routes
   if (pathname.startsWith('/api/auth/') && request.method === 'POST') {
-    const { success } = await authRatelimit.limit(ip)
-    if (!success) {
-      return NextResponse.json({ error: 'Too many requests. Try again in 15 minutes.' }, { status: 429 })
-    }
+    const ok = await checkRateLimit('rl:auth', ip, 10, '15 m')
+    if (!ok) return NextResponse.json({ error: 'Too many requests. Try again in 15 minutes.' }, { status: 429 })
   }
 
   // Rate limiting for API v1
   if (pathname.startsWith('/api/v1/')) {
-    const { success } = await apiRatelimit.limit(ip)
-    if (!success) {
-      return NextResponse.json({ success: false, error: 'Rate limit exceeded (100 req/min)' }, { status: 429 })
-    }
+    const ok = await checkRateLimit('rl:api', ip, 100, '1 m')
+    if (!ok) return NextResponse.json({ success: false, error: 'Rate limit exceeded (100 req/min)' }, { status: 429 })
   }
 
   // Auth protection for dashboard routes
@@ -81,7 +75,7 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('callbackUrl', pathname)
       return NextResponse.redirect(loginUrl)
     }
-    if (isAdmin && !session.user.isAdmin) {
+    if (isAdmin && !(session.user as { isAdmin?: boolean }).isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

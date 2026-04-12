@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { SessionProvider } from 'next-auth/react'
 
 const chakraPetch = Chakra_Petch({
   subsets: ['latin'],
@@ -65,6 +66,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <SessionProvider>
           <QueryProvider>
             {children}
             <Toaster
@@ -80,6 +82,7 @@ export default function RootLayout({
               }}
             />
           </QueryProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
