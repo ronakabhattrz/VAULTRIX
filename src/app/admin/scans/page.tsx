@@ -2,136 +2,130 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
-import { Search, Loader2, Shield, ChevronRight } from 'lucide-react'
-import Link from 'next/link'
-import { formatDistanceToNow } from 'date-fns'
+import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    COMPLETED: 'text-[#4ade80] bg-[#4ade80]/10 border-[#4ade80]/20',
-    RUNNING: 'text-[#60a5fa] bg-[#60a5fa]/10 border-[#60a5fa]/20',
-    FAILED: 'text-red-400 bg-red-400/10 border-red-400/20',
-    QUEUED: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20',
-  }
-  return (
-    <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-heading font-semibold uppercase ${map[status] ?? 'text-[#8888aa] border-[#1e1e35]'}`}>
-      {status}
-    </span>
-  )
+const STATUS_STYLES: Record<string, string> = {
+  COMPLETED: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+  RUNNING:   'text-blue-400 bg-blue-400/10 border-blue-400/20',
+  QUEUED:    'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
+  FAILED:    'text-red-400 bg-red-400/10 border-red-400/20',
+}
+
+const GRADE_COLORS: Record<string, string> = {
+  'A+': '#4ade80', A: '#4ade80', B: '#86efac', C: '#f59e0b', D: '#f97316', F: '#ef4444'
 }
 
 export default function AdminScansPage() {
+  const [page, setPage]     = useState(1)
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const [q, setQ]           = useState('')
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-scans', page, search],
+  const { data: res, isLoading } = useQuery({
+    queryKey: ['admin-scans', page, q],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '25' })
-      if (search) params.set('search', search)
-      const res = await fetch(`/api/admin/scans?${params}`)
-      if (!res.ok) throw new Error('Failed')
-      return res.json()
+      if (q) params.set('search', q)
+      const r = await fetch(`/api/admin/scans?${params}`)
+      if (!r.ok) throw new Error('Failed')
+      const json = await r.json()
+      return json.data ?? json
     },
-    placeholderData: prev => prev,
   })
 
-  const scans = data?.scans ?? []
-  const total = data?.total ?? 0
+  const scans = res?.scans ?? []
+  const total = res?.total ?? 0
+  const pages = Math.ceil(total / 25)
 
   return (
-    <div className="min-h-screen p-6" style={{ background: '#050508' }}>
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-[#f0f0ff]">All Scans</h1>
-            <p className="text-sm text-[#8888aa] mt-1">{total} total scans</p>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">All Scans</h1>
+        <p className="text-sm text-slate-400 mt-1">{total} total scans across all users</p>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-5 max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { setQ(search); setPage(1) } }}
+          placeholder="Search by URL… (press Enter)"
+          className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm text-white bg-[#0d0d18] border border-[#2a2a3a] outline-none focus:border-red-500/50 placeholder:text-slate-600"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#2a2a3a' }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: '#0d0d18', borderBottom: '1px solid #2a2a3a' }}>
+              {['URL', 'User', 'Status', 'Score', 'Duration', 'Date'].map(h => (
+                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-widest">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody style={{ background: '#080810' }}>
+            {isLoading ? (
+              <tr><td colSpan={6} className="text-center py-12"><Loader2 className="h-5 w-5 animate-spin text-red-400 mx-auto" /></td></tr>
+            ) : scans.length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-12 text-slate-500">No scans found</td></tr>
+            ) : scans.map((s: {
+              id: string; url: string; status: string; score?: number; grade?: string;
+              scanDuration?: number; createdAt: string;
+              user?: { name?: string; email: string }
+            }) => (
+              <tr key={s.id} className="border-t hover:bg-white/[0.02] transition-colors" style={{ borderColor: '#1e1e2e' }}>
+                <td className="px-4 py-3 max-w-[240px]">
+                  <p className="text-xs text-white font-mono truncate">{s.url}</p>
+                  <p className="text-xs text-slate-600 font-mono mt-0.5">{s.id.slice(0, 8)}…</p>
+                </td>
+                <td className="px-4 py-3">
+                  <p className="text-xs text-slate-300">{s.user?.name ?? '—'}</p>
+                  <p className="text-xs text-slate-500">{s.user?.email ?? '—'}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${STATUS_STYLES[s.status] ?? 'text-slate-400 bg-slate-400/10 border-slate-400/20'}`}>
+                    {s.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {s.score != null ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold font-mono" style={{ color: GRADE_COLORS[s.grade ?? ''] ?? '#64748b' }}>
+                        {s.grade}
+                      </span>
+                      <span className="text-xs text-slate-400">{s.score}</span>
+                    </div>
+                  ) : <span className="text-slate-600 text-xs">—</span>}
+                </td>
+                <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                  {s.scanDuration ? `${(s.scanDuration / 1000).toFixed(1)}s` : '—'}
+                </td>
+                <td className="px-4 py-3 text-slate-500 text-xs font-mono">
+                  {new Date(s.createdAt).toLocaleDateString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {pages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs text-slate-500">Page {page} of {pages} · {total} scans</span>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="p-1.5 rounded border border-[#2a2a3a] text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
+              className="p-1.5 rounded border border-[#2a2a3a] text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
-
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#3a3a5c]" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search by URL or user email…"
-            className="w-full pl-9 pr-4 py-2 bg-[#0d0d14] border border-[#1e1e35] rounded-lg text-sm text-[#f0f0ff] outline-none focus:border-[#4ade80] transition-colors placeholder:text-[#3a3a5c]"
-          />
-        </div>
-
-        <div className="vx-card overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="h-6 w-6 animate-spin text-[#4ade80]" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#1e1e35]">
-                    {['URL', 'User', 'Status', 'Score', 'Date', ''].map((h, i) => (
-                      <th key={i} className="px-5 py-3 text-left text-[10px] font-heading font-semibold text-[#3a3a5c] uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scans.map((scan: {
-                    id: string; url: string; status: string; score?: number;
-                    user: { name: string; email: string }; createdAt: string
-                  }) => (
-                    <tr key={scan.id} className="border-b border-[#1e1e35] hover:bg-[#0d0d14] transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm font-mono text-[#f0f0ff] truncate max-w-[200px] block">
-                          {scan.url.replace(/^https?:\/\//, '')}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-xs text-[#f0f0ff]">{scan.user?.name}</p>
-                        <p className="text-xs text-[#3a3a5c]">{scan.user?.email}</p>
-                      </td>
-                      <td className="px-5 py-3.5"><StatusPill status={scan.status} /></td>
-                      <td className="px-5 py-3.5">
-                        {scan.score !== undefined ? (
-                          <span className={`text-sm font-heading font-bold ${scan.score >= 80 ? 'text-[#4ade80]' : scan.score >= 60 ? 'text-[#f59e0b]' : 'text-red-400'}`}>
-                            {scan.score}
-                          </span>
-                        ) : <span className="text-[#3a3a5c]">—</span>}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-xs text-[#3a3a5c]">
-                          {formatDistanceToNow(new Date(scan.createdAt), { addSuffix: true })}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Link href={`/scan/${scan.id}`} className="text-xs text-[#4ade80] hover:underline flex items-center gap-1">
-                          View <ChevronRight className="h-3 w-3" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {scans.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-32">
-                  <Shield className="h-8 w-8 text-[#1e1e35] mb-2" />
-                  <p className="text-sm text-[#3a3a5c]">No scans found</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {Math.ceil(total / 25) > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-xs text-[#3a3a5c]">Page {page} of {Math.ceil(total / 25)}</p>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1.5 border border-[#1e1e35] rounded text-xs text-[#8888aa] disabled:opacity-40">Previous</button>
-              <button disabled={page === Math.ceil(total / 25)} onClick={() => setPage(p => p + 1)} className="px-3 py-1.5 border border-[#1e1e35] rounded text-xs text-[#8888aa] disabled:opacity-40">Next</button>
-            </div>
-          </div>
-        )}
-      </motion.div>
+      )}
     </div>
   )
 }
