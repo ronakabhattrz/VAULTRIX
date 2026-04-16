@@ -14,6 +14,9 @@
     },
     "src/app/api/demo/scan/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/internal/scan/process/route.ts": {
+      "maxDuration": 300
     }
   }
 }

@@ -49,13 +49,17 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Enqueue
+  // Enqueue in BullMQ for Docker/self-hosted worker (non-fatal if Redis unavailable)
   await enqueueScan({
     scanId: scan.id,
     url,
     userId: session.userId,
     plan: session.plan,
-  })
+  }).catch(() => null)
+
+  // Fire-and-forget trigger for Vercel (no persistent worker).
+  // The process endpoint uses an atomic DB claim so only one path (worker vs this) wins.
+  triggerProcessEndpoint(scan.id, req)
 
   // Track API usage
   await db.apiUsage.create({
@@ -69,4 +73,20 @@ export async function POST(req: NextRequest) {
   }).catch(() => null)
 
   return ok({ scanId: scan.id, status: 'QUEUED', url })
+}
+
+function triggerProcessEndpoint(scanId: string, req: NextRequest): void {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
+    `${req.nextUrl.protocol}//${req.nextUrl.host}`
+
+  fetch(`${appUrl}/api/internal/scan/process`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-internal-secret': process.env.CRON_SECRET ?? '',
+    },
+    body: JSON.stringify({ scanId }),
+  }).catch(() => null) // fire and forget
 }
