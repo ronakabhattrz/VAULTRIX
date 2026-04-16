@@ -8,20 +8,26 @@ import { runSSLModule } from '@/lib/scanner/modules/ssl'
 import { runCookiesModule } from '@/lib/scanner/modules/cookies'
 import { calculateScore } from '@/lib/scanner/scoring'
 
-const ratelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(3, '1 d'),
-  prefix: 'demo_scan',
-})
+const ratelimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(3, '1 d'),
+      prefix: 'demo_scan',
+    })
+  : null
 
 const demoSchema = z.object({ url: urlSchema })
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? req.headers.get('x-real-ip') ?? '127.0.0.1'
 
-  const { success, remaining } = await ratelimit.limit(ip)
-  if (!success) {
-    return err('Demo scan limit reached (3/day). Sign up for unlimited scans.', 429)
+  let remaining = 99
+  if (ratelimit) {
+    const result = await ratelimit.limit(ip)
+    if (!result.success) {
+      return err('Demo scan limit reached (3/day). Sign up for unlimited scans.', 429)
+    }
+    remaining = result.remaining
   }
 
   const body = await req.json().catch(() => null)

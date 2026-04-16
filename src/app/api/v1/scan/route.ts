@@ -49,20 +49,29 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  let enqueued = false
+
   if (process.env.REDIS_URL) {
-    // Docker / self-hosted: BullMQ worker picks it up
+    // Docker / self-hosted: try BullMQ worker
     try {
       const { enqueueScan } = await import('@/lib/queue')
       await enqueueScan({ scanId: scan.id, url, userId: session.userId, plan: session.plan })
-    } catch { /* non-fatal */ }
-  } else {
-    // Vercel: no persistent worker — run scanner directly in this Lambda via waitUntil.
+      enqueued = true
+      console.log(`[scan/route] Scan ${scan.id} enqueued via BullMQ`)
+    } catch (queueErr) {
+      console.error('[scan/route] BullMQ enqueue failed, falling back to waitUntil:', queueErr)
+    }
+  }
+
+  if (!enqueued) {
+    // Vercel / fallback: run scanner directly in this Lambda via waitUntil.
     // waitUntil keeps the function alive after the response is sent (up to maxDuration).
-    // Claim the scan atomically before handing off.
+    console.log(`[scan/route] Scan ${scan.id} using waitUntil path`)
     await db.scan.update({ where: { id: scan.id }, data: { status: 'RUNNING' } })
 
     waitUntil(
       (async () => {
+        console.log(`[scan/route] waitUntil: starting processScan for ${scan.id}`)
         const { processScan } = await import('@/lib/processScan')
         await processScan({
           scanId: scan.id,
@@ -70,12 +79,11 @@ export async function POST(req: NextRequest) {
           userId: session.userId,
           plan: session.plan,
         })
-      })().catch(async (err) => {
-        console.error('[scan/route] processScan failed:', err)
-        // Ensure scan is marked FAILED if processScan itself throws before handling it
+      })().catch(async (processErr) => {
+        console.error('[scan/route] processScan failed:', String(processErr))
         await db.scan.update({
           where: { id: scan.id, status: { in: ['QUEUED', 'RUNNING'] } },
-          data: { status: 'FAILED', errorMessage: String(err), completedAt: new Date() },
+          data: { status: 'FAILED', errorMessage: String(processErr), completedAt: new Date() },
         }).catch(() => null)
       })
     )

@@ -5,6 +5,8 @@ const SCAN_CHANNEL_PREFIX = 'scan:'
 const EVENT_TTL_SECONDS = 300 // 5 minutes
 
 export async function publishScanEvent(scanId: string, event: ScanEmitEvent): Promise<void> {
+  if (!redis) return // Upstash not configured — events are ephemeral, scan still runs
+
   const channel = `${SCAN_CHANNEL_PREFIX}${scanId}`
   const payload = JSON.stringify(event)
 
@@ -21,6 +23,8 @@ export async function publishScanEvent(scanId: string, event: ScanEmitEvent): Pr
 }
 
 export async function getScanHistory(scanId: string): Promise<ScanEmitEvent[]> {
+  if (!redis) return []
+
   try {
     const channel = `${SCAN_CHANNEL_PREFIX}${scanId}`
     const items = await redis.lrange(`${channel}:history`, 0, -1)
@@ -40,5 +44,6 @@ export async function getScanHistory(scanId: string): Promise<ScanEmitEvent[]> {
 }
 
 export async function clearScanHistory(scanId: string): Promise<void> {
+  if (!redis) return
   await redis.del(`${SCAN_CHANNEL_PREFIX}${scanId}:history`)
 }

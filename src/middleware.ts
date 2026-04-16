@@ -18,6 +18,7 @@ async function checkRateLimit(prefix: string, ip: string, limit: number, window:
   try {
     const { Ratelimit } = await import('@upstash/ratelimit')
     const { redis } = await import('@/lib/redis')
+    if (!redis) return true
     const rl = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(limit, window as `${number} ${'ms'|'s'|'m'|'h'|'d'}`), prefix })
     const { success } = await rl.limit(ip)
     return success
