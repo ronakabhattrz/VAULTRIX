@@ -4,9 +4,20 @@ import { ok, err, requireAuth, urlSchema, checkScanQuota } from '@/lib/api'
 import { db } from '@/lib/db'
 import { waitUntil } from '@vercel/functions'
 
+const PROFILE_TO_PLAN: Record<string, string> = {
+  quick: 'FREE',
+  standard: 'STARTER',
+  deep: 'PRO',
+  full: 'AGENCY',
+}
+
+const PLAN_ORDER = ['FREE', 'STARTER', 'PRO', 'AGENCY', 'ENTERPRISE']
+
 const startScanSchema = z.object({
   url: urlSchema,
   clientId: z.string().optional(),
+  profile: z.enum(['quick', 'standard', 'deep', 'full']).optional(),
+  notes: z.string().max(500).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -19,7 +30,18 @@ export async function POST(req: NextRequest) {
   const parsed = startScanSchema.safeParse(body)
   if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { url, clientId } = parsed.data
+  const { url, clientId, profile } = parsed.data
+
+  // Determine effective plan: profile caps modules to the selected profile's tier,
+  // but never higher than the user's actual plan.
+  let effectivePlan = session.plan
+  if (profile) {
+    const profilePlan = PROFILE_TO_PLAN[profile]
+    const sessionIdx = PLAN_ORDER.indexOf(session.plan)
+    const profileIdx = PLAN_ORDER.indexOf(profilePlan)
+    // Use whichever is lower (more restrictive)
+    effectivePlan = PLAN_ORDER[Math.min(sessionIdx, profileIdx)] ?? session.plan
+  }
 
   // Check quota
   const quota = await checkScanQuota(session.userId, session.plan)
@@ -55,7 +77,7 @@ export async function POST(req: NextRequest) {
     // Docker / self-hosted: try BullMQ worker
     try {
       const { enqueueScan } = await import('@/lib/queue')
-      await enqueueScan({ scanId: scan.id, url, userId: session.userId, plan: session.plan })
+      await enqueueScan({ scanId: scan.id, url, userId: session.userId, plan: effectivePlan })
       enqueued = true
       console.log(`[scan/route] Scan ${scan.id} enqueued via BullMQ`)
     } catch (queueErr) {
@@ -77,7 +99,7 @@ export async function POST(req: NextRequest) {
           scanId: scan.id,
           url,
           userId: session.userId,
-          plan: session.plan,
+          plan: effectivePlan,
         })
       })().catch(async (processErr) => {
         console.error('[scan/route] processScan failed:', String(processErr))

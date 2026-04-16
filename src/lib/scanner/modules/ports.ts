@@ -17,36 +17,41 @@ async function checkPort(host: string, port: number, timeoutMs = 3000): Promise<
   return new Promise((resolve) => {
     const socket = new net.Socket()
     let banner = ''
+    let resolved = false
+    let connected = false
+
+    const done = (open: boolean, b?: string) => {
+      if (!resolved) {
+        resolved = true
+        socket.destroy()
+        resolve({ open, banner: b })
+      }
+    }
 
     socket.setTimeout(timeoutMs)
 
     socket.once('connect', () => {
-      // Attempt banner grab
+      connected = true
       socket.setTimeout(1500)
     })
 
     socket.once('data', (data) => {
       banner = data.toString('utf8', 0, 256).replace(/[\r\n]/g, ' ').trim()
-      socket.destroy()
+      done(true, banner)
     })
 
     socket.once('timeout', () => {
-      socket.destroy()
-      if (banner) {
-        resolve({ open: true, banner })
-      } else if (socket.connecting) {
-        resolve({ open: false })
-      } else {
-        resolve({ open: true })
-      }
+      if (banner) done(true, banner)
+      else if (!connected) done(false)
+      else done(true)
     })
 
     socket.once('error', () => {
-      resolve({ open: false })
+      done(false)
     })
 
     socket.once('close', () => {
-      resolve({ open: socket.writable || !!banner, banner })
+      if (!resolved) done(connected)
     })
 
     socket.connect(port, host)

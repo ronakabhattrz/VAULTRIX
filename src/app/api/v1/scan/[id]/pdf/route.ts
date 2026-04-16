@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (scan.status !== 'COMPLETED') return new NextResponse('Scan not complete', { status: 400 })
 
   try {
-    const findings = (scan.findings as { severity: string; title: string; category: string; description?: string; remediation?: string }[] | null) ?? []
+    const findings = (scan.findings as { severity: string; name: string; category: string; description?: string; remediation?: string }[] | null) ?? []
 
     const pdf = await generateScanPdf({
       id: scan.id,

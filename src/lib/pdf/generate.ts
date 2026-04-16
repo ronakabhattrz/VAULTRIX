@@ -1,5 +1,6 @@
 import chromium from '@sparticuz/chromium'
-import puppeteer from 'puppeteer-core'
+import puppeteerCore from 'puppeteer-core'
+import puppeteer from 'puppeteer'
 
 interface ScanData {
   id: string
@@ -8,7 +9,7 @@ interface ScanData {
   grade: string
   findings: {
     severity: string
-    title: string
+    name: string
     category: string
     description?: string
     remediation?: string
@@ -54,7 +55,7 @@ function buildHtml(scan: ScanData): string {
             ${f.severity}
           </span>
         </td>
-        <td style="padding:8px 12px;border-bottom:1px solid #1e1e35;color:#f0f0ff;font-size:12px;">${f.title}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #1e1e35;color:#f0f0ff;font-size:12px;">${f.name}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #1e1e35;color:#8888aa;font-size:11px;">${f.category}</td>
       </tr>
     `).join('')
@@ -163,20 +164,20 @@ function buildHtml(scan: ScanData): string {
 }
 
 export async function generateScanPdf(scan: ScanData): Promise<Buffer> {
-  const isLocal = process.env.NODE_ENV === 'development'
+  const isVercel = !!process.env.VERCEL
 
   let browser
-  if (isLocal) {
-    // Local: use system Chrome or installed puppeteer
-    browser = await puppeteer.launch({
-      executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    })
-  } else {
+  if (isVercel) {
     // Production (Vercel): use @sparticuz/chromium
-    browser = await puppeteer.launch({
+    browser = await puppeteerCore.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
+      headless: true,
+    })
+  } else {
+    // Local dev: use puppeteer's own bundled Chromium (no system Chrome needed)
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
       headless: true,
     })
   }
