@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { ok, err, requireAuth, urlSchema, checkScanQuota } from '@/lib/api'
 import { db } from '@/lib/db'
-import { enqueueScan } from '@/lib/queue'
 
 const startScanSchema = z.object({
   url: urlSchema,
@@ -49,19 +48,20 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Enqueue in BullMQ for Docker/self-hosted worker (non-fatal if Redis unavailable)
-  await enqueueScan({
-    scanId: scan.id,
-    url,
-    userId: session.userId,
-    plan: session.plan,
-  }).catch(() => null)
+  // Only enqueue to BullMQ when Redis is explicitly configured (Docker/self-hosted).
+  // On Vercel, REDIS_URL is not set — without this guard IORedis retries forever
+  // with maxRetriesPerRequest:null and hangs the request → 504.
+  if (process.env.REDIS_URL) {
+    try {
+      const { enqueueScan } = await import('@/lib/queue')
+      await enqueueScan({ scanId: scan.id, url, userId: session.userId, plan: session.plan })
+    } catch { /* non-fatal */ }
+  }
 
-  // Fire-and-forget trigger for Vercel (no persistent worker).
-  // The process endpoint uses an atomic DB claim so only one path (worker vs this) wins.
+  // Fire-and-forget to the internal process endpoint (handles Vercel where no worker runs).
+  // Atomic DB claim inside ensures only one path (worker vs this) processes the scan.
   triggerProcessEndpoint(scan.id, req)
 
-  // Track API usage
   await db.apiUsage.create({
     data: {
       userId: session.userId,
@@ -88,5 +88,5 @@ function triggerProcessEndpoint(scanId: string, req: NextRequest): void {
       'x-internal-secret': process.env.CRON_SECRET ?? '',
     },
     body: JSON.stringify({ scanId }),
-  }).catch(() => null) // fire and forget
+  }).catch(() => null)
 }
