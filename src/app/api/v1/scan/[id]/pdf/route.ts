@@ -9,23 +9,34 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const scan = await db.scan.findFirst({
     where: { id: params.id, userId: session.userId },
-    include: { categoryScores: true },
+    include: { categoryScores: true, complianceResults: true },
   })
 
   if (!scan) return new NextResponse('Not found', { status: 404 })
   if (scan.status !== 'COMPLETED') return new NextResponse('Scan not complete', { status: 400 })
 
   try {
-    const findings = (scan.findings as { severity: string; name: string; category: string; description?: string; remediation?: string }[] | null) ?? []
+    const findings = (scan.findings as {
+      severity: string; name: string; category: string;
+      description?: string; evidence?: string; impact?: string;
+      remediation?: string; references?: string[];
+      cvssScore?: number; cveIds?: string[]; owaspId?: string;
+    }[] | null) ?? []
 
     const pdf = await generateScanPdf({
       id: scan.id,
       url: scan.url,
+      domain: scan.domain,
       score: scan.score ?? 0,
       grade: scan.grade ?? '?',
       findings,
       categoryScores: scan.categoryScores,
       completedAt: scan.completedAt ?? scan.createdAt,
+      techStack: (scan.techStack as Record<string, unknown> | null) ?? {},
+      modulesRun: (scan.modulesRun as string[] | null) ?? [],
+      scanDuration: scan.scanDuration ?? 0,
+      serverSoftware: scan.serverSoftware ?? null,
+      ipAddress: scan.ipAddress ?? null,
     })
 
     const domain = scan.domain.replace(/[^a-zA-Z0-9-]/g, '-')
