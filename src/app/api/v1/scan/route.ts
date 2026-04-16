@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { ok, err, requireAuth, urlSchema, checkScanQuota } from '@/lib/api'
 import { db } from '@/lib/db'
+import { waitUntil } from '@vercel/functions'
 
 const startScanSchema = z.object({
   url: urlSchema,
@@ -48,19 +49,37 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Only enqueue to BullMQ when Redis is explicitly configured (Docker/self-hosted).
-  // On Vercel, REDIS_URL is not set — without this guard IORedis retries forever
-  // with maxRetriesPerRequest:null and hangs the request → 504.
   if (process.env.REDIS_URL) {
+    // Docker / self-hosted: BullMQ worker picks it up
     try {
       const { enqueueScan } = await import('@/lib/queue')
       await enqueueScan({ scanId: scan.id, url, userId: session.userId, plan: session.plan })
     } catch { /* non-fatal */ }
-  }
+  } else {
+    // Vercel: no persistent worker — run scanner directly in this Lambda via waitUntil.
+    // waitUntil keeps the function alive after the response is sent (up to maxDuration).
+    // Claim the scan atomically before handing off.
+    await db.scan.update({ where: { id: scan.id }, data: { status: 'RUNNING' } })
 
-  // Fire-and-forget to the internal process endpoint (handles Vercel where no worker runs).
-  // Atomic DB claim inside ensures only one path (worker vs this) processes the scan.
-  triggerProcessEndpoint(scan.id, req)
+    waitUntil(
+      (async () => {
+        const { processScan } = await import('@/lib/processScan')
+        await processScan({
+          scanId: scan.id,
+          url,
+          userId: session.userId,
+          plan: session.plan,
+        })
+      })().catch(async (err) => {
+        console.error('[scan/route] processScan failed:', err)
+        // Ensure scan is marked FAILED if processScan itself throws before handling it
+        await db.scan.update({
+          where: { id: scan.id, status: { in: ['QUEUED', 'RUNNING'] } },
+          data: { status: 'FAILED', errorMessage: String(err), completedAt: new Date() },
+        }).catch(() => null)
+      })
+    )
+  }
 
   await db.apiUsage.create({
     data: {
@@ -73,20 +92,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => null)
 
   return ok({ scanId: scan.id, status: 'QUEUED', url })
-}
-
-function triggerProcessEndpoint(scanId: string, req: NextRequest): void {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
-    `${req.nextUrl.protocol}//${req.nextUrl.host}`
-
-  fetch(`${appUrl}/api/internal/scan/process`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-internal-secret': process.env.CRON_SECRET ?? '',
-    },
-    body: JSON.stringify({ scanId }),
-  }).catch(() => null)
 }
