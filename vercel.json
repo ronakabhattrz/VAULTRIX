@@ -10,7 +10,7 @@
       "maxDuration": 60
     },
     "src/app/api/v1/scan/[id]/stream/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 30
     },
     "src/app/api/demo/scan/route.ts": {
       "maxDuration": 60
