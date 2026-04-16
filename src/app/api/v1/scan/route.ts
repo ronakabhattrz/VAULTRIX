@@ -32,15 +32,18 @@ export async function POST(req: NextRequest) {
 
   const { url, clientId, profile } = parsed.data
 
-  // Determine effective plan: profile caps modules to the selected profile's tier,
-  // but never higher than the user's actual plan.
+  // Profile directly determines which module set to run.
+  // Plan gates access — reject if the user's plan is below the profile's required tier.
+  // If no profile is sent, fall back to the user's plan (API / legacy behaviour).
   let effectivePlan = session.plan
   if (profile) {
     const profilePlan = PROFILE_TO_PLAN[profile]
     const sessionIdx = PLAN_ORDER.indexOf(session.plan)
     const profileIdx = PLAN_ORDER.indexOf(profilePlan)
-    // Use whichever is lower (more restrictive)
-    effectivePlan = PLAN_ORDER[Math.min(sessionIdx, profileIdx)] ?? session.plan
+    if (sessionIdx < profileIdx) {
+      return err(`Your plan (${session.plan}) does not include the ${profile} scan profile. Upgrade at /billing.`, 403)
+    }
+    effectivePlan = profilePlan
   }
 
   // Check quota

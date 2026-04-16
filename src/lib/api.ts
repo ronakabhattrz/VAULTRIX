@@ -31,13 +31,18 @@ export async function requireAuth(req?: NextRequest): Promise<{ userId: string; 
     return { userId: user.id, plan: user.plan, isAdmin: user.isAdmin }
   }
 
-  // Session
+  // Session — always fetch plan fresh from DB so upgrades take effect immediately
   const session = await auth()
   if (!session?.user?.id) return null
+  const dbUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { plan: true, isAdmin: true, isSuspended: true },
+  })
+  if (!dbUser || dbUser.isSuspended) return null
   return {
     userId: session.user.id,
-    plan: session.user.plan ?? 'FREE',
-    isAdmin: session.user.isAdmin ?? false,
+    plan: dbUser.plan ?? 'FREE',
+    isAdmin: dbUser.isAdmin ?? false,
   }
 }
 
